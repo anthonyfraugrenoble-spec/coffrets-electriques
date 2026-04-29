@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Suivi Coffrets Électriques — Ville de Grenoble</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bleu:#1a3a6b;--bleu2:#2256a8;--jaune:#f5c518;--jaune2:#e6b800;
+    --vert:#1a7a4a;--rouge:#c0392b;--gris:#f4f6fa;--grisFonce:#888;
+    --border:#d0d7e3;--blanc:#fff;--texte:#1a2340;
+    --radius:12px;--shadow:0 2px 12px rgba(26,58,107,.10);
+  }
+  html,body{height:100%;font-family:'Segoe UI',system-ui,sans-serif;background:var(--gris);color:var(--texte);font-size:15px}
+
+  /* ===== LAYOUT PRINCIPAL ===== */
+  #app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;background:var(--blanc);box-shadow:0 0 40px rgba(0,0,0,.12);position:relative;overflow:hidden}
+
+  /* ===== HEADER ===== */
+  header{background:linear-gradient(135deg,var(--bleu) 0%,var(--bleu2) 100%);color:#fff;padding:14px 16px 10px;flex-shrink:0}
+  .header-top{display:flex;align-items:center;gap:10px}
+  .header-icon{font-size:26px;line-height:1}
+  .header-titles h1{font-size:17px;font-weight:700;letter-spacing:.3px}
+  .header-titles p{font-size:11px;opacity:.78;margin-top:1px}
+  .status-badge{margin-left:auto;font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3)}
+  .status-badge.online{background:rgba(26,122,74,.35);border-color:rgba(26,122,74,.6)}
+
+  /* ===== NAV BAS ===== */
+  nav{display:flex;background:var(--blanc);border-top:1px solid var(--border);flex-shrink:0;z-index:10}
+  nav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px 6px;background:none;border:none;cursor:pointer;font-size:10px;color:var(--grisFonce);transition:.15s}
+  nav button.active{color:var(--bleu2);font-weight:600}
+  nav button .nav-icon{font-size:20px}
+
+  /* ===== CONTENU ===== */
+  .screen{flex:1;overflow-y:auto;padding:14px;display:none;flex-direction:column;gap:12px}
+  .screen.active{display:flex}
+
+  /* ===== CARDS ===== */
+  .card{background:var(--blanc);border:1px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow)}
+  .card-title{font-size:13px;font-weight:700;color:var(--bleu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+  /* ===== FILTRES SECTEURS (écran Coffrets) ===== */
+  .sector-nav{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+  .sector-nav::-webkit-scrollbar{display:none}
+  .sector-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--blanc);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;color:var(--texte)}
+  .sector-btn.active{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+
+  /* ===== SÉLECTEUR SECTEUR EN 2 ÉTAPES ===== */
+  .sector-step{display:flex;flex-direction:column;gap:8px}
+  .sector-step-label{font-size:12px;color:var(--grisFonce);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .sector-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .sector-card-btn{padding:12px 6px;border-radius:10px;border:1.5px solid var(--border);background:var(--blanc);font-size:14px;font-weight:600;cursor:pointer;text-align:center;transition:.15s;color:var(--bleu)}
+  .sector-card-btn:hover{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+  .sector-card-btn.active{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+
+  /* ===== LISTE COFFRETS ===== */
+  .coffret-item{background:var(--blanc);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+  .coffret-item:hover{border-color:var(--bleu2);box-shadow:0 2px 10px rgba(34,86,168,.12)}
+  .coffret-thumb{width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;background:var(--gris);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--grisFonce);overflow:hidden}
+  .coffret-thumb img{width:100%;height:100%;object-fit:cover}
+  .coffret-info{flex:1;min-width:0}
+  .coffret-name{font-weight:700;font-size:14px;color:var(--texte);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .coffret-sub{font-size:12px;color:var(--grisFonce);margin-top:2px}
+  .coffret-badge{flex-shrink:0;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px}
+  .badge-ok{background:#e8f5ee;color:var(--vert)}
+  .badge-enc{background:#fff3cd;color:#856404}
+  .badge-ko{background:#fde8e8;color:var(--rouge)}
+  .chevron{color:var(--grisFonce);font-size:16px;flex-shrink:0}
+
+  /* ===== DÉTAIL COFFRET ===== */
+  .detail-header{background:linear-gradient(135deg,var(--bleu) 0%,var(--bleu2) 100%);border-radius:var(--radius);color:#fff;padding:16px;position:relative}
+  .detail-header h2{font-size:18px;font-weight:700}
+  .detail-header .detail-meta{font-size:12px;opacity:.8;margin-top:4px;display:flex;flex-direction:column;gap:2px}
+  .detail-photo{width:100%;border-radius:10px;object-fit:cover;max-height:200px;border:2px solid rgba(255,255,255,.25);margin-top:12px}
+  .detail-photo-placeholder{width:100%;height:120px;border-radius:10px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:36px;margin-top:12px;border:2px dashed rgba(255,255,255,.3)}
+  .back-btn{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-flex;align-items:center;gap:5px}
+
+  /* ===== INTERVENTIONS ===== */
+  .interv-item{background:var(--blanc);border-left:4px solid var(--bleu2);border-radius:0 8px 8px 0;border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 12px;margin-bottom:8px}
+  .interv-item.closed{border-left-color:var(--vert)}
+  .interv-item.open{border-left-color:#f59e0b}
+  .interv-date{font-size:11px;color:var(--grisFonce);margin-bottom:2px}
+  .interv-desc{font-size:13px;color:var(--texte)}
+  .interv-actions{display:flex;gap:6px;margin-top:8px}
+  .btn-sm{font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid;cursor:pointer;font-weight:600}
+  .btn-close{background:#e8f5ee;color:var(--vert);border-color:#b7dfc8}
+  .btn-del{background:#fde8e8;color:var(--rouge);border-color:#f5c2c2}
+  .interv-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;display:inline-block;margin-bottom:4px}
+  .s-open{background:#fff3cd;color:#856404}
+  .s-closed{background:#e8f5ee;color:var(--vert)}
+
+  /* ===== FORMULAIRES ===== */
+  .form-group{display:flex;flex-direction:column;gap:5px}
+  .form-group label{font-size:12px;font-weight:600;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px}
+  .form-group input,.form-group select,.form-group textarea{border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;background:var(--blanc);color:var(--texte);transition:.15s;width:100%}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--bleu2);box-shadow:0 0 0 3px rgba(34,86,168,.1)}
+  .form-group textarea{min-height:80px;resize:vertical}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn-primary{background:var(--bleu);color:#fff;border:none;border-radius:10px;padding:12px 18px;font-size:15px;font-weight:700;cursor:pointer;width:100%;transition:.15s;letter-spacing:.2px}
+  .btn-primary:hover{background:var(--bleu2)}
+  .btn-primary:active{transform:scale(.98)}
+  .btn-secondary{background:var(--gris);color:var(--texte);border:1.5px solid var(--border);border-radius:10px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;width:100%;transition:.15s}
+
+  /* ===== PHOTO UPLOAD ===== */
+  .photo-upload-area{border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:.15s;position:relative}
+  .photo-upload-area:hover{border-color:var(--bleu2);background:rgba(34,86,168,.03)}
+  .photo-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .photo-preview{width:100%;max-height:180px;object-fit:cover;border-radius:8px;margin-top:8px;display:none}
+
+  /* ===== TABLEAU DE BORD ===== */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .stat-card{background:var(--blanc);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;box-shadow:var(--shadow)}
+  .stat-num{font-size:28px;font-weight:800;color:var(--bleu)}
+  .stat-label{font-size:11px;color:var(--grisFonce);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+  .stat-card.vert .stat-num{color:var(--vert)}
+  .stat-card.jaune .stat-num{color:#856404}
+  .stat-card.rouge .stat-num{color:var(--rouge)}
+
+  /* ===== PDF EXPORT ===== */
+  .pdf-section{background:var(--blanc);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
+  .pdf-section h3{font-size:14px;font-weight:700;color:var(--bleu);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+  .radio-group{display:flex;flex-wrap:wrap;gap:8px}
+  .radio-opt{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:6px 12px;border:1.5px solid var(--border);border-radius:20px;transition:.15s}
+  .radio-opt input{display:none}
+  .radio-opt.selected{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+  .date-row{display:flex;gap:8px;align-items:center}
+  .date-row input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+  #pdf-coffret-select-wrap{display:none}
+
+  /* ===== RECHERCHE ===== */
+  .search-bar{display:flex;align-items:center;gap:8px;background:var(--gris);border:1.5px solid var(--border);border-radius:10px;padding:8px 12px}
+  .search-bar input{flex:1;border:none;background:transparent;font-size:14px;font-family:inherit;outline:none;color:var(--texte)}
+  .search-bar span{color:var(--grisFonce);font-size:16px}
+
+  /* ===== MODAL ===== */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-end;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--blanc);border-radius:16px 16px 0 0;padding:20px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .modal-header h3{font-size:16px;font-weight:700;color:var(--texte)}
+  .modal-close{background:var(--gris);border:none;border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;color:var(--grisFonce);display:flex;align-items:center;justify-content:center}
+  .modal-actions{display:flex;gap:10px;margin-top:16px}
+  .modal-actions button{flex:1}
+  .btn-danger{background:var(--rouge);color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer}
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state{text-align:center;padding:40px 20px;color:var(--grisFonce)}
+  .empty-state .empty-icon{font-size:48px;margin-bottom:12px}
+  .empty-state p{font-size:14px;line-height:1.6}
+
+  /* ===== TOAST ===== */
+  .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a3a6b;color:#fff;padding:10px 20px;border-radius:30px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:.3s;z-index:200;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ===== SCROLLBAR ===== */
+  .screen::-webkit-scrollbar{width:4px}
+  .screen::-webkit-scrollbar-track{background:transparent}
+  .screen::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+  @media(min-width:481px){
+    #app{border-radius:24px;height:calc(100vh - 40px);margin:20px auto}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="header-top">
+      <div class="header-icon">⚡</div>
+      <div class="header-titles">
+        <h1>Suivi Coffrets Électriques</h1>
+        <p>Ville de Grenoble</p>
+      </div>
+      <div class="status-badge online" id="status-badge">EN LIGNE</div>
+    </div>
+  </header>
+
+  <!-- ===== ÉCRAN COFFRETS ===== -->
+  <div class="screen active" id="screen-coffrets">
+
+    <!-- ÉTAPE 1 : choisir le secteur (affiché par défaut) -->
+    <div id="step-choose-sector">
+      <div class="card">
+        <div class="card-title">⚡ Sélectionner un secteur</div>
+        <div class="sector-step">
+          <div class="sector-step-label">Choisissez votre secteur :</div>
+          <div class="sector-grid" id="sector-grid-main"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 2 : liste des coffrets du secteur choisi (masqué au départ) -->
+    <div id="step-list-coffrets" style="display:none;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="back-btn" style="background:var(--gris);color:var(--bleu);border:1px solid var(--border)" onclick="goBackToSectors()">← Secteurs</button>
+        <div style="font-size:16px;font-weight:700;color:var(--bleu)" id="sector-title-display"></div>
+      </div>
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" placeholder="Rechercher un coffret…" id="search-coffret" oninput="renderCoffretList()">
+      </div>
+      <div id="coffret-list-container"></div>
+    </div>
+
+    <!-- DÉTAIL COFFRET (masqué au départ) -->
+    <div id="step-detail-coffret" style="display:none;flex-direction:column;gap:12px">
+      <button class="back-btn" style="background:var(--gris);color:var(--bleu);border:1px solid var(--border)" onclick="goBackToList()">← Retour liste</button>
+      <div class="detail-header" id="detail-header-content"></div>
+      <div class="card">
+        <div class="card-title">🔧 Interventions sur ce coffret</div>
+        <div id="detail-interventions-list"></div>
+        <button class="btn-primary" style="margin-top:10px" onclick="openNewIntervForCoffret()">➕ Nouvelle intervention</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== ÉCRAN INTERVENTIONS ===== -->
+  <div class="screen" id="screen-interventions">
+    <div class="card">
+      <div class="card-title">🔧 Toutes les interventions</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <select id="filter-statut" onchange="renderInterventions()" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
+          <option value="">Tous statuts</option>
+          <option value="En cours">En cours</option>
+          <option value="Clôturée">Clôturées</option>
+        </select>
+        <select id="filter-sector" onchange="renderInterventions()" style="flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit">
+          <option value="">Tous secteurs</option>
+        </select>
+      </div>
+      <div id="interventions-list-global"></div>
+    </div>
+    <button class="btn-primary" onclick="goTo('screen-nouveau')">➕ Nouvelle intervention</button>
+  </div>
+
+  <!-- ===== ÉCRAN NOUVEAU ===== -->
+  <div class="screen" id="screen-nouveau">
+
+    <!-- Nouvelle intervention -->
+    <div class="card">
+      <div class="card-title">🔧 Enregistrer une intervention</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label>Coffret *</label>
+          <select id="new-interv-coffret">
+            <option value="">— Sélectionner un coffret —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" id="new-interv-date">
+        </div>
+        <div class="form-group">
+          <label>Statut</label>
+          <select id="new-interv-statut">
+            <option value="En cours">En cours / Signalement</option>
+            <option value="Clôturée">Terminée / Clôturée</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Description *</label>
+          <textarea id="new-interv-desc" placeholder="Décrire l'intervention…"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Pièces / matériel utilisé</label>
+          <input type="text" id="new-interv-pieces" placeholder="ex: disjoncteur 16A, câble…">
+        </div>
+        <button class="btn-primary" onclick="saveIntervention()">✅ Enregistrer l'intervention</button>
+      </div>
+    </div>
+
+    <!-- Ajouter un coffret -->
+    <div class="card">
+      <div class="card-title">⚡ Ajouter un coffret</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label>Nom / Code coffret *</label>
+          <input type="text" id="new-coffret-nom" placeholder="ex: CE-S2-04">
+        </div>
+        <div class="form-group">
+          <label>Secteur *</label>
+          <select id="new-coffret-secteur">
+            <option value="">— Choisir le secteur —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Adresse / Localisation</label>
+          <input type="text" id="new-coffret-adresse" placeholder="ex: Rue Voltaire, près de l'école…">
+        </div>
+        <div class="form-group">
+          <label>Photo du coffret</label>
+          <div class="photo-upload-area" id="photo-upload-area">
+            <input type="file" accept="image/*" capture="environment" id="photo-input" onchange="handlePhotoUpload(event)">
+            <div id="photo-upload-placeholder">
+              <div style="font-size:32px;margin-bottom:6px">📷</div>
+              <div style="font-size:13px;color:var(--grisFonce)">Appuyez pour ajouter une photo</div>
+              <div style="font-size:11px;color:var(--grisFonce);margin-top:2px">JPG, PNG — max 5 Mo</div>
+            </div>
+            <img id="photo-preview" class="photo-preview">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="saveCoffret()">⚡ Créer le coffret</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== ÉCRAN EXPORT PDF ===== -->
+  <div class="screen" id="screen-pdf">
+    <div class="pdf-section">
+      <h3>📅 Paramètres du rapport</h3>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">Type de rapport</div>
+        <div class="radio-group" id="pdf-type-group">
+          <label class="radio-opt selected" onclick="selectPdfType('global',this)">
+            <input type="radio" name="pdf-type" value="global" checked> Rapport global
+          </label>
+          <label class="radio-opt" onclick="selectPdfType('coffret',this)">
+            <input type="radio" name="pdf-type" value="coffret"> Coffret précis
+          </label>
+        </div>
+      </div>
+
+      <div id="pdf-coffret-select-wrap" style="margin-bottom:12px">
+        <div class="form-group">
+          <label>Choisir le coffret</label>
+          <select id="pdf-coffret-select">
+            <option value="">— Sélectionner —</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">Période</div>
+        <div class="radio-group" id="pdf-period-group">
+          <label class="radio-opt selected" onclick="selectPdfPeriod('all',this)">Tout</label>
+          <label class="radio-opt" onclick="selectPdfPeriod('month',this)">Ce mois</label>
+          <label class="radio-opt" onclick="selectPdfPeriod('custom',this)">Personnalisé</label>
+        </div>
+      </div>
+      <div id="pdf-custom-dates" style="display:none;gap:8px;flex-direction:column;margin-bottom:12px">
+        <div class="form-row">
+          <div class="form-group"><label>Du</label><input type="date" id="pdf-date-from"></div>
+          <div class="form-group"><label>Au</label><input type="date" id="pdf-date-to"></div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">Secteur(s)</div>
+        <div class="radio-group" id="pdf-sector-group">
+          <label class="radio-opt selected" onclick="selectPdfSector('all',this)">Tous</label>
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:600;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">Statut</div>
+        <div class="radio-group" id="pdf-statut-group">
+          <label class="radio-opt selected" onclick="selectPdfStatut('all',this)">Tous</label>
+          <label class="radio-opt" onclick="selectPdfStatut('En cours',this)">En cours</label>
+          <label class="radio-opt" onclick="selectPdfStatut('Clôturée',this)">Clôturées</label>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="generatePDF()">🖨️ Générer et imprimer le PDF</button>
+    </div>
+  </div>
+
+  <!-- ===== ÉCRAN TABLEAU DE BORD ===== -->
+  <div class="screen" id="screen-tableau">
+    <div class="card">
+      <div class="card-title">📊 Tableau de bord</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total-coffrets">0</div>
+          <div class="stat-label">Coffrets</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total-interv">0</div>
+          <div class="stat-label">Interventions</div>
+        </div>
+        <div class="stat-card jaune">
+          <div class="stat-num" id="stat-en-cours">0</div>
+          <div class="stat-label">En cours</div>
+        </div>
+        <div class="stat-card vert">
+          <div class="stat-num" id="stat-cloturees">0</div>
+          <div class="stat-label">Clôturées</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" id="stats-by-sector"></div>
+  </div>
+
+  <nav>
+    <button class="active" onclick="goTo('screen-coffrets')" id="nav-coffrets">
+      <span class="nav-icon">⚡</span>Coffrets
+    </button>
+    <button onclick="goTo('screen-interventions')" id="nav-interventions">
+      <span class="nav-icon">🔧</span>Interventions
+    </button>
+    <button onclick="goTo('screen-nouveau')" id="nav-nouveau">
+      <span class="nav-icon">➕</span>Nouveau
+    </button>
+    <button onclick="goTo('screen-pdf')" id="nav-pdf">
+      <span class="nav-icon">📄</span>Export PDF
+    </button>
+    <button onclick="goTo('screen-tableau')" id="nav-tableau">
+      <span class="nav-icon">📊</span>Tableau
+    </button>
+  </nav>
+</div>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-overlay" id="modal-cloture">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✅ Clôturer l'intervention</h3>
+      <button class="modal-close" onclick="closeModal('modal-cloture')">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-group">
+        <label>Date de résolution</label>
+        <input type="date" id="cloture-date">
+      </div>
+      <div class="form-group">
+        <label>Description de la résolution *</label>
+        <textarea id="cloture-desc" placeholder="Décrire la résolution…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Pièces utilisées / coût</label>
+        <input type="text" id="cloture-pieces">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-cloture')">Annuler</button>
+      <button class="btn-primary" onclick="confirmCloture()">Clôturer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🗑️ Supprimer ?</h3>
+      <button class="modal-close" onclick="closeModal('modal-delete')">✕</button>
+    </div>
+    <p style="font-size:14px;color:var(--grisFonce)">Cette action est irréversible.</p>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modal-delete')">Annuler</button>
+      <button class="btn-danger" onclick="confirmDelete()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =====================================================================
+// DONNÉES
+// =====================================================================
+const SECTORS = ['Secteur 1','Secteur 2','Secteur 3','Secteur 4','Secteur 5','Secteur 6'];
+const SECTOR_SHORT = ['S1','S2','S3','S4','S5','S6'];
+
+function loadData(){
+  return {
+    coffrets: JSON.parse(localStorage.getItem('coffrets')||'[]'),
+    interventions: JSON.parse(localStorage.getItem('interventions')||'[]')
+  };
+}
+function saveData(data){
+  localStorage.setItem('coffrets', JSON.stringify(data.coffrets));
+  localStorage.setItem('interventions', JSON.stringify(data.interventions));
+}
+function getData(){return loadData();}
+
+// =====================================================================
+// ÉTAT UI
+// =====================================================================
+let currentScreen = 'screen-coffrets';
+let currentSectorIndex = null; // null = page choix secteur
+let currentCoffretId = null;
+let pendingClotureId = null;
+let pendingDeleteId = null;
+let pendingDeleteType = null;
+let pdfType = 'global';
+let pdfPeriod = 'all';
+let pdfSector = 'all';
+let pdfStatut = 'all';
+let pendingIntervCoffretId = null;
+let newPhotoBase64 = null;
+
+// =====================================================================
+// NAVIGATION
+// =====================================================================
+function goTo(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  const navId = 'nav-' + screenId.replace('screen-','');
+  const nb = document.getElementById(navId);
+  if(nb) nb.classList.add('active');
+  currentScreen = screenId;
+
+  if(screenId==='screen-coffrets'){
+    // revenir à l'étape 1 seulement si on vient d'un autre écran
+    showSectorChoice();
+  }
+  if(screenId==='screen-interventions') renderInterventions();
+  if(screenId==='screen-nouveau'){ populateSelects(); setTodayDate(); }
+  if(screenId==='screen-pdf') populatePdfUI();
+  if(screenId==='screen-tableau') renderTableau();
+}
+
+// =====================================================================
+// COFFRETS — ÉTAPE 1 : choix secteur
+// =====================================================================
+function showSectorChoice(){
+  document.getElementById('step-choose-sector').style.display='block';
+  document.getElementById('step-list-coffrets').style.display='none';
+  document.getElementById('step-detail-coffret').style.display='none';
+  currentSectorIndex = null;
+  currentCoffretId = null;
+  renderSectorGrid();
+}
+
+function renderSectorGrid(){
+  const data = getData();
+  const grid = document.getElementById('sector-grid-main');
+  grid.innerHTML = SECTORS.map((s,i)=>{
+    const count = data.coffrets.filter(c=>c.secteur===s).length;
+    return `<button class="sector-card-btn" onclick="chooseSector(${i})">
+      <div style="font-size:11px;opacity:.7;margin-bottom:2px">${SECTOR_SHORT[i]}</div>
+      <div>${s.replace('Secteur ','Sect. ')}</div>
+      <div style="font-size:10px;opacity:.6;margin-top:3px">${count} coffret${count>1?'s':''}</div>
+    </button>`;
+  }).join('');
+}
+
+// =====================================================================
+// COFFRETS — ÉTAPE 2 : liste du secteur
+// =====================================================================
+function chooseSector(idx){
+  currentSectorIndex = idx;
+  document.getElementById('step-choose-sector').style.display='none';
+  document.getElementById('step-list-coffrets').style.display='flex';
+  document.getElementById('step-detail-coffret').style.display='none';
+  document.getElementById('sector-title-display').textContent = SECTORS[idx];
+  document.getElementById('search-coffret').value = '';
+  renderCoffretList();
+}
+
+function goBackToSectors(){
+  showSectorChoice();
+}
+
+function renderCoffretList(){
+  const data = getData();
+  const q = (document.getElementById('search-coffret').value||'').toLowerCase();
+  const coffrets = data.coffrets
+    .filter(c=>c.secteur===SECTORS[currentSectorIndex])
+    .filter(c=> !q || c.nom.toLowerCase().includes(q) || (c.adresse||'').toLowerCase().includes(q));
+
+  const container = document.getElementById('coffret-list-container');
+  if(!coffrets.length){
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⚡</div><p>Aucun coffret dans ce secteur.<br>Ajoutez-en un via l'onglet Nouveau.</p></div>`;
+    return;
+  }
+  const intervs = data.interventions;
+  container.innerHTML = coffrets.map(c=>{
+    const ci = intervs.filter(i=>i.coffretId===c.id);
+    const hasOpen = ci.some(i=>i.statut==='En cours');
+    const badge = hasOpen
+      ? `<span class="coffret-badge badge-enc">En cours</span>`
+      : ci.length>0
+        ? `<span class="coffret-badge badge-ok">OK</span>`
+        : `<span class="coffret-badge" style="background:#f0f0f0;color:#888">Aucune</span>`;
+    const thumb = c.photo
+      ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`
+      : '⚡';
+    return `<div class="coffret-item" onclick="showCoffretDetail('${c.id}')">
+      <div class="coffret-thumb">${thumb}</div>
+      <div class="coffret-info">
+        <div class="coffret-name">${c.nom}</div>
+        <div class="coffret-sub">${c.adresse||'Pas d\'adresse'} · ${ci.length} interv.</div>
+      </div>
+      ${badge}
+      <span class="chevron">›</span>
+    </div>`;
+  }).join('');
+}
+
+// =====================================================================
+// DÉTAIL COFFRET
+// =====================================================================
+function showCoffretDetail(id){
+  currentCoffretId = id;
+  const data = getData();
+  const c = data.coffrets.find(x=>x.id===id);
+  if(!c) return;
+
+  document.getElementById('step-list-coffrets').style.display='none';
+  document.getElementById('step-choose-sector').style.display='none';
+  document.getElementById('step-detail-coffret').style.display='flex';
+
+  // Header
+  const photoHtml = c.photo
+    ? `<img src="${c.photo}" class="detail-photo" alt="Photo coffret">`
+    : `<div class="detail-photo-placeholder">⚡</div>`;
+  document.getElementById('detail-header-content').innerHTML = `
+    <h2>⚡ ${c.nom}</h2>
+    <div class="detail-meta">
+      <span>📍 ${c.adresse||'Adresse non renseignée'}</span>
+      <span>📂 ${c.secteur}</span>
+    </div>
+    ${photoHtml}
+  `;
+
+  // Interventions
+  renderDetailInterventions(data, id);
+}
+
+function renderDetailInterventions(data, coffretId){
+  if(!data) data = getData();
+  const intervs = data.interventions.filter(i=>i.coffretId===coffretId)
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  const container = document.getElementById('detail-interventions-list');
+  if(!intervs.length){
+    container.innerHTML = `<div class="empty-state" style="padding:20px"><div class="empty-icon">🔧</div><p>Aucune intervention enregistrée.</p></div>`;
+    return;
+  }
+  container.innerHTML = intervs.map(i=>{
+    const cls = i.statut==='Clôturée'?'closed':'open';
+    const sBadge = i.statut==='Clôturée'
+      ? `<span class="interv-status s-closed">✅ Clôturée</span>`
+      : `<span class="interv-status s-open">⏳ En cours</span>`;
+    const clotureInfo = i.statut==='Clôturée' && i.clotureDate
+      ? `<div style="font-size:11px;color:var(--vert);margin-top:4px">Résolu le ${formatDate(i.clotureDate)} — ${i.clotureDesc||''}</div>`
+      : '';
+    const piecesInfo = i.pieces ? `<div style="font-size:11px;color:var(--grisFonce);margin-top:2px">Pièces : ${i.pieces}</div>` : '';
+    const actions = i.statut!=='Clôturée'
+      ? `<div class="interv-actions">
+          <button class="btn-sm btn-close" onclick="openCloture('${i.id}')">✅ Clôturer</button>
+          <button class="btn-sm btn-del" onclick="openDelete('${i.id}','interv')">🗑️ Supprimer</button>
+        </div>` : `<div class="interv-actions"><button class="btn-sm btn-del" onclick="openDelete('${i.id}','interv')">🗑️ Supprimer</button></div>`;
+    return `<div class="interv-item ${cls}">
+      ${sBadge}
+      <div class="interv-date">${formatDate(i.date)}</div>
+      <div class="interv-desc">${i.description}</div>
+      ${piecesInfo}${clotureInfo}${actions}
+    </div>`;
+  }).join('');
+}
+
+function goBackToList(){
+  document.getElementById('step-detail-coffret').style.display='none';
+  document.getElementById('step-list-coffrets').style.display='flex';
+  renderCoffretList();
+}
+
+function openNewIntervForCoffret(){
+  pendingIntervCoffretId = currentCoffretId;
+  goTo('screen-nouveau');
+  setTimeout(()=>{
+    const sel = document.getElementById('new-interv-coffret');
+    if(sel) sel.value = pendingIntervCoffretId;
+    pendingIntervCoffretId = null;
+  }, 100);
+}
+
+// =====================================================================
+// INTERVENTIONS GLOBALES
+// =====================================================================
+function renderInterventions(){
+  const data = getData();
+  const fStatut = document.getElementById('filter-statut').value;
+  const fSector = document.getElementById('filter-sector').value;
+
+  let intervs = data.interventions.sort((a,b)=>b.date.localeCompare(a.date));
+  if(fStatut) intervs = intervs.filter(i=>i.statut===fStatut);
+  if(fSector) intervs = intervs.filter(i=>{
+    const c = data.coffrets.find(x=>x.id===i.coffretId);
+    return c && c.secteur===fSector;
+  });
+
+  const container = document.getElementById('interventions-list-global');
+  if(!intervs.length){
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🔧</div><p>Aucune intervention.</p></div>`;
+    return;
+  }
+  container.innerHTML = intervs.map(i=>{
+    const c = data.coffrets.find(x=>x.id===i.coffretId);
+    const cName = c?c.nom:'Coffret inconnu';
+    const cSec = c?c.secteur:'';
+    const sBadge = i.statut==='Clôturée'
+      ? `<span class="interv-status s-closed">✅ Clôturée</span>`
+      : `<span class="interv-status s-open">⏳ En cours</span>`;
+    const actions = i.statut!=='Clôturée'
+      ? `<button class="btn-sm btn-close" onclick="openCloture('${i.id}')">✅ Clôturer</button>`
+      : '';
+    return `<div class="interv-item ${i.statut==='Clôturée'?'closed':'open'}" style="margin-bottom:10px">
+      ${sBadge}
+      <div style="font-size:12px;font-weight:700;color:var(--bleu);margin-bottom:2px">⚡ ${cName} <span style="font-weight:400;color:var(--grisFonce)">${cSec}</span></div>
+      <div class="interv-date">${formatDate(i.date)}</div>
+      <div class="interv-desc">${i.description}</div>
+      ${i.pieces?`<div style="font-size:11px;color:var(--grisFonce)">Pièces : ${i.pieces}</div>`:''}
+      <div class="interv-actions">${actions}<button class="btn-sm btn-del" onclick="openDelete('${i.id}','interv')">🗑️ Supprimer</button></div>
+    </div>`;
+  }).join('');
+}
+
+// =====================================================================
+// SELECTS / DATES
+// =====================================================================
+function populateSelects(){
+  const data = getData();
+  const coffretSel = document.getElementById('new-interv-coffret');
+  const secteurSel = document.getElementById('new-coffret-secteur');
+  const filterSector = document.getElementById('filter-sector');
+
+  coffretSel.innerHTML = '<option value="">— Sélectionner un coffret —</option>';
+  data.coffrets.forEach(c=>{
+    coffretSel.innerHTML += `<option value="${c.id}">${c.nom} (${c.secteur})</option>`;
+  });
+  if(pendingIntervCoffretId) coffretSel.value = pendingIntervCoffretId;
+
+  secteurSel.innerHTML = '<option value="">— Choisir le secteur —</option>';
+  SECTORS.forEach(s=>{ secteurSel.innerHTML += `<option value="${s}">${s}</option>`; });
+
+  filterSector.innerHTML = '<option value="">Tous secteurs</option>';
+  SECTORS.forEach(s=>{ filterSector.innerHTML += `<option value="${s}">${s}</option>`; });
+}
+
+function setTodayDate(){
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('new-interv-date').value = today;
+  document.getElementById('cloture-date').value = today;
+}
+
+// =====================================================================
+// PHOTO
+// =====================================================================
+function handlePhotoUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    newPhotoBase64 = e.target.result;
+    const preview = document.getElementById('photo-preview');
+    const placeholder = document.getElementById('photo-upload-placeholder');
+    preview.src = newPhotoBase64;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// =====================================================================
+// SAVE COFFRET
+// =====================================================================
+function saveCoffret(){
+  const nom = document.getElementById('new-coffret-nom').value.trim();
+  const secteur = document.getElementById('new-coffret-secteur').value;
+  const adresse = document.getElementById('new-coffret-adresse').value.trim();
+  if(!nom||!secteur){ showToast('⚠️ Nom et secteur obligatoires'); return; }
+  const data = getData();
+  data.coffrets.push({ id:'c'+Date.now(), nom, secteur, adresse, photo:newPhotoBase64||null });
+  saveData(data);
+  document.getElementById('new-coffret-nom').value='';
+  document.getElementById('new-coffret-secteur').value='';
+  document.getElementById('new-coffret-adresse').value='';
+  document.getElementById('photo-preview').style.display='none';
+  document.getElementById('photo-upload-placeholder').style.display='block';
+  newPhotoBase64=null;
+  showToast('✅ Coffret créé !');
+}
+
+// =====================================================================
+// SAVE INTERVENTION
+// =====================================================================
+function saveIntervention(){
+  const coffretId = document.getElementById('new-interv-coffret').value;
+  const date = document.getElementById('new-interv-date').value;
+  const statut = document.getElementById('new-interv-statut').value;
+  const description = document.getElementById('new-interv-desc').value.trim();
+  const pieces = document.getElementById('new-interv-pieces').value.trim();
+  if(!coffretId||!date||!description){ showToast('⚠️ Coffret, date et description obligatoires'); return; }
+  const data = getData();
+  data.interventions.push({ id:'i'+Date.now(), coffretId, date, statut, description, pieces });
+  saveData(data);
+  document.getElementById('new-interv-coffret').value='';
+  document.getElementById('new-interv-desc').value='';
+  document.getElementById('new-interv-pieces').value='';
+  showToast('✅ Intervention enregistrée !');
+}
+
+// =====================================================================
+// CLÔTURE / SUPPRESSION
+// =====================================================================
+function openCloture(id){
+  pendingClotureId=id;
+  document.getElementById('cloture-desc').value='';
+  document.getElementById('cloture-pieces').value='';
+  setTodayDate();
+  openModal('modal-cloture');
+}
+function confirmCloture(){
+  const data=getData();
+  const i=data.interventions.find(x=>x.id===pendingClotureId);
+  if(!i) return;
+  const desc=document.getElementById('cloture-desc').value.trim();
+  if(!desc){ showToast('⚠️ Décrivez la résolution'); return; }
+  i.statut='Clôturée';
+  i.clotureDate=document.getElementById('cloture-date').value;
+  i.clotureDesc=desc;
+  i.cloturePieces=document.getElementById('cloture-pieces').value.trim();
+  saveData(data);
+  closeModal('modal-cloture');
+  showToast('✅ Intervention clôturée');
+  if(currentCoffretId) renderDetailInterventions(null, currentCoffretId);
+  if(currentScreen==='screen-interventions') renderInterventions();
+}
+
+function openDelete(id,type){
+  pendingDeleteId=id; pendingDeleteType=type;
+  openModal('modal-delete');
+}
+function confirmDelete(){
+  const data=getData();
+  if(pendingDeleteType==='interv'){
+    data.interventions=data.interventions.filter(i=>i.id!==pendingDeleteId);
+  } else {
+    data.coffrets=data.coffrets.filter(c=>c.id!==pendingDeleteId);
+    data.interventions=data.interventions.filter(i=>i.coffretId!==pendingDeleteId);
+  }
+  saveData(data);
+  closeModal('modal-delete');
+  showToast('🗑️ Supprimé');
+  if(currentCoffretId) renderDetailInterventions(null,currentCoffretId);
+  if(currentScreen==='screen-interventions') renderInterventions();
+}
+
+// =====================================================================
+// TABLEAU DE BORD
+// =====================================================================
+function renderTableau(){
+  const data=getData();
+  const total=data.coffrets.length;
+  const totalI=data.interventions.length;
+  const enc=data.interventions.filter(i=>i.statut==='En cours').length;
+  const clo=data.interventions.filter(i=>i.statut==='Clôturée').length;
+  document.getElementById('stat-total-coffrets').textContent=total;
+  document.getElementById('stat-total-interv').textContent=totalI;
+  document.getElementById('stat-en-cours').textContent=enc;
+  document.getElementById('stat-cloturees').textContent=clo;
+
+  const bySec=document.getElementById('stats-by-sector');
+  bySec.innerHTML='<div class="card-title">📂 Par secteur</div>'+SECTORS.map(s=>{
+    const nc=data.coffrets.filter(c=>c.secteur===s).length;
+    const ni=data.interventions.filter(i=>{
+      const c=data.coffrets.find(x=>x.id===i.coffretId);
+      return c&&c.secteur===s;
+    }).length;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;font-weight:600">${s}</span>
+      <span style="font-size:12px;color:var(--grisFonce)">${nc} coffret${nc>1?'s':''} · ${ni} interv.</span>
+    </div>`;
+  }).join('');
+}
+
+// =====================================================================
+// PDF
+// =====================================================================
+function populatePdfUI(){
+  const sg=document.getElementById('pdf-sector-group');
+  sg.innerHTML='<label class="radio-opt selected" onclick="selectPdfSector(\'all\',this)">Tous</label>';
+  SECTORS.forEach(s=>{
+    sg.innerHTML+=`<label class="radio-opt" onclick="selectPdfSector('${s}',this)">${s}</label>`;
+  });
+  const data=getData();
+  const cs=document.getElementById('pdf-coffret-select');
+  cs.innerHTML='<option value="">— Sélectionner —</option>';
+  data.coffrets.forEach(c=>{ cs.innerHTML+=`<option value="${c.id}">${c.nom} (${c.secteur})</option>`; });
+}
+
+function selectPdfType(v,el){
+  pdfType=v;
+  el.closest('.radio-group').querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('pdf-coffret-select-wrap').style.display = v==='coffret'?'block':'none';
+}
+function selectPdfPeriod(v,el){
+  pdfPeriod=v;
+  el.closest('.radio-group').querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('pdf-custom-dates').style.display = v==='custom'?'flex':'none';
+}
+function selectPdfSector(v,el){
+  pdfSector=v;
+  el.closest('.radio-group').querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function selectPdfStatut(v,el){
+  pdfStatut=v;
+  el.closest('.radio-group').querySelectorAll('.radio-opt').forEach(x=>x.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function generatePDF(){
+  const data=getData();
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const margin=15; let y=margin;
+  const pw=doc.internal.pageSize.getWidth()-margin*2;
+
+  // --- En-tête ---
+  doc.setFillColor(26,58,107);
+  doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('⚡ Suivi Coffrets Électriques — Ville de Grenoble',margin,13);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Direction des Services Techniques',margin,20);
+  doc.text(`Rapport généré le ${new Date().toLocaleDateString('fr-FR')}`,210-margin,20,{align:'right'});
+  y=36;
+
+  // --- Filtres ---
+  let intervs=data.interventions;
+  let coffrets=data.coffrets;
+
+  if(pdfType==='coffret'){
+    const cid=document.getElementById('pdf-coffret-select').value;
+    if(cid){
+      const cof=data.coffrets.find(x=>x.id===cid);
+      if(cof){
+        // Titre du coffret
+        doc.setFillColor(240,245,255);
+        doc.rect(margin,y,pw,14,'F');
+        doc.setTextColor(26,58,107);
+        doc.setFontSize(12); doc.setFont('helvetica','bold');
+        doc.text(`Coffret : ${cof.nom}`,margin+4,y+6);
+        doc.setFontSize(9); doc.setFont('helvetica','normal');
+        doc.setTextColor(80,80,80);
+        doc.text(`${cof.secteur} — ${cof.adresse||'Adresse non renseignée'}`,margin+4,y+11);
+        y+=18;
+        intervs=data.interventions.filter(i=>i.coffretId===cid);
+        coffrets=coffrets.filter(c=>c.id===cid);
+      }
+    }
+  }
+
+  // Filtres période
+  if(pdfPeriod==='month'){
+    const now=new Date(); const m=now.getMonth(); const yr=now.getFullYear();
+    intervs=intervs.filter(i=>{ const d=new Date(i.date); return d.getMonth()===m&&d.getFullYear()===yr; });
+  } else if(pdfPeriod==='custom'){
+    const from=document.getElementById('pdf-date-from').value;
+    const to=document.getElementById('pdf-date-to').value;
+    if(from) intervs=intervs.filter(i=>i.date>=from);
+    if(to) intervs=intervs.filter(i=>i.date<=to);
+  }
+  if(pdfSector!=='all'){
+    intervs=intervs.filter(i=>{ const c=data.coffrets.find(x=>x.id===i.coffretId); return c&&c.secteur===pdfSector; });
+    coffrets=coffrets.filter(c=>c.secteur===pdfSector);
+  }
+  if(pdfStatut!=='all') intervs=intervs.filter(i=>i.statut===pdfStatut);
+
+  // --- Résumé stats ---
+  doc.setFillColor(245,248,255);
+  doc.rect(margin,y,pw,22,'F');
+  doc.setDrawColor(210,220,240);
+  doc.rect(margin,y,pw,22,'S');
+  doc.setTextColor(26,58,107); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('Résumé',margin+4,y+7);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50);
+  const enc=intervs.filter(i=>i.statut==='En cours').length;
+  const clo=intervs.filter(i=>i.statut==='Clôturée').length;
+  doc.text(`Coffrets : ${coffrets.length}   |   Interventions : ${intervs.length}   |   En cours : ${enc}   |   Clôturées : ${clo}`, margin+4, y+14);
+  y+=28;
+
+  // --- Liste interventions ---
+  if(!intervs.length){
+    doc.setTextColor(120,120,120); doc.setFontSize(10);
+    doc.text('Aucune intervention pour les critères sélectionnés.',margin,y);
+    y+=10;
+  } else {
+    intervs.sort((a,b)=>b.date.localeCompare(a.date)).forEach(i=>{
+      const c=data.coffrets.find(x=>x.id===i.coffretId);
+      const cName=c?c.nom:'Inconnu';
+      const cSec=c?c.secteur:'';
+      const isOpen=i.statut==='En cours';
+
+      if(y>260){ doc.addPage(); y=margin; }
+
+      // Barre couleur
+      doc.setFillColor(isOpen?245:26, isOpen?158:122, isOpen?11:74);
+      doc.rect(margin,y,3,18,'F');
+
+      doc.setFillColor(isOpen?255:248, isOpen?252:255, isOpen?235:250);
+      doc.rect(margin+3,y,pw-3,18,'F');
+      doc.setDrawColor(210,220,240);
+      doc.rect(margin+3,y,pw-3,18,'S');
+
+      doc.setTextColor(26,58,107); doc.setFontSize(9); doc.setFont('helvetica','bold');
+      doc.text(`⚡ ${cName}`,margin+6,y+5);
+      doc.setTextColor(80,80,80); doc.setFont('helvetica','normal');
+      doc.text(`${cSec} — ${formatDate(i.date)}`,margin+6,y+10);
+      doc.setTextColor(isOpen?133:26, isOpen?100:122, isOpen?11:74);
+      doc.text(i.statut,210-margin-4,y+5,{align:'right'});
+      doc.setTextColor(50,50,50);
+      const lines=doc.splitTextToSize(i.description,pw-14);
+      doc.text(lines[0],margin+6,y+15);
+
+      y+=22;
+      if(i.pieces){ doc.setTextColor(120,120,120); doc.setFontSize(8); doc.text(`Pièces : ${i.pieces}`,margin+6,y); y+=5; }
+      if(i.statut==='Clôturée'&&i.clotureDate){
+        doc.setTextColor(26,122,74); doc.setFontSize(8);
+        doc.text(`Résolu le ${formatDate(i.clotureDate)}${i.clotureDesc?' — '+i.clotureDesc:''}`,margin+6,y);
+        y+=5;
+      }
+      y+=3;
+    });
+  }
+
+  // --- Pied de page ---
+  const pages=doc.internal.getNumberOfPages();
+  for(let p=1;p<=pages;p++){
+    doc.setPage(p);
+    doc.setFillColor(26,58,107);
+    doc.rect(0,285,210,12,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(8);
+    doc.text('Ville de Grenoble — Suivi Coffrets Électriques Extérieurs',margin,291);
+    doc.text(`Page ${p}/${pages}`,210-margin,291,{align:'right'});
+  }
+
+  doc.save(`rapport-coffrets-${new Date().toISOString().split('T')[0]}.pdf`);
+  showToast('📄 PDF généré !');
+}
+
+// =====================================================================
+// UTILS
+// =====================================================================
+function formatDate(d){
+  if(!d) return '';
+  const [y,m,j]=d.split('-');
+  return `${j}/${m}/${y}`;
+}
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+window.addEventListener('DOMContentLoaded',()=>{
+  setTodayDate();
+  renderSectorGrid();
+
+  // Données de démonstration si vide
+  const data=getData();
+  if(!data.coffrets.length){
+    data.coffrets=[
+      {id:'c1',nom:'CE-S1-01',secteur:'Secteur 1',adresse:'Rue Alsace-Lorraine',photo:null},
+      {id:'c2',nom:'CE-S1-02',secteur:'Secteur 1',adresse:'Place Victor Hugo',photo:null},
+      {id:'c3',nom:'CE-S2-01',secteur:'Secteur 2',adresse:'Rue Félix Poulat',photo:null},
+      {id:'c4',nom:'CE-S2-02',secteur:'Secteur 2',adresse:'Avenue Alsace-Lorraine',photo:null},
+      {id:'c5',nom:'CE-S3-01',secteur:'Secteur 3',adresse:'Rue Haxo',photo:null},
+    ];
+    data.interventions=[
+      {id:'i1',coffretId:'c1',date:'2025-04-10',statut:'Clôturée',description:'Disjoncteur HS remplacé',pieces:'Disjoncteur 32A',clotureDate:'2025-04-11',clotureDesc:'Disjoncteur neuf posé'},
+      {id:'i2',coffretId:'c3',date:'2025-04-22',statut:'En cours',description:'Porte du coffret forcée — serrure à remplacer',pieces:''},
+      {id:'i3',coffretId:'c4',date:'2025-04-18',statut:'En cours',description:'Câble endommagé sur circuit 3',pieces:'Câble 2.5mm²'},
+    ];
+    saveData(data);
+  }
+
+  // Fermer modals au clic extérieur
+  document.querySelectorAll('.modal-overlay').forEach(m=>{
+    m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); });
+  });
+});
+</script>
+</body>
+</html>
